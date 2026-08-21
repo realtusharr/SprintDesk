@@ -1,18 +1,109 @@
 @import "tailwindcss";
+@import "@fontsource-variable/inter";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme inline {
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-elevated: var(--elevated);
+  --color-sunken: var(--sunken);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+
+  --color-ink: var(--ink);
+  --color-ink-secondary: var(--ink-secondary);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-faint: var(--ink-faint);
+
+  --color-brand: var(--brand);
+  --color-brand-hover: var(--brand-hover);
+  --color-brand-active: var(--brand-active);
+  --color-brand-soft: var(--brand-soft);
+  --color-brand-ink: var(--brand-ink);
+
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.04), 0 1px 3px rgb(0 0 0 / 0.06);
+  --shadow-pop: 0 4px 6px -2px rgb(0 0 0 / 0.05), 0 10px 24px -6px rgb(0 0 0 / 0.12);
+  --shadow-drag: 0 8px 16px -4px rgb(0 0 0 / 0.14), 0 20px 40px -8px rgb(0 0 0 / 0.22);
+
+  --animate-fade-in: fade-in 0.18s ease-out;
+  --animate-slide-up: slide-up 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-slide-in-right: slide-in-right 0.26s cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-slide-in-left: slide-in-left 0.26s cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-toast-in: toast-in 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+}
 
 :root {
-  font-family:
-    Inter,
-    system-ui,
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    sans-serif;
+  --canvas: #f7f7f9;
+  --surface: #ffffff;
+  --elevated: #ffffff;
+  --sunken: #f0f0f4;
+  --line: #e5e5ec;
+  --line-strong: #d4d4de;
 
-  color: #111827;
-  background: #f8fafc;
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
+  --ink: #191922;
+  --ink-secondary: #55555f;
+  --ink-muted: #84848f;
+  --ink-faint: #b1b1bc;
+
+  --brand: #5b5bd6;
+  --brand-hover: #5050c8;
+  --brand-active: #4646b8;
+  --brand-soft: #ededfb;
+  --brand-ink: #4a4ac4;
+
+  --success: #1f9d61;
+  --success-soft: #e3f5eb;
+  --warning: #b47a08;
+  --warning-soft: #fcf1dc;
+  --danger: #d5484c;
+  --danger-soft: #fce8e8;
+  --info: #0086c9;
+  --info-soft: #e3f2fb;
+
+  color-scheme: light;
+}
+
+.dark {
+  --canvas: #0c0c10;
+  --surface: #14141a;
+  --elevated: #1b1b23;
+  --sunken: #0f0f14;
+  --line: #26262f;
+  --line-strong: #34343f;
+
+  --ink: #f2f2f5;
+  --ink-secondary: #a6a6b3;
+  --ink-muted: #71717f;
+  --ink-faint: #4a4a56;
+
+  --brand: #7b78ee;
+  --brand-hover: #8b89f2;
+  --brand-active: #6c69e4;
+  --brand-soft: #232347;
+  --brand-ink: #b6b4f7;
+
+  --success: #3dd68c;
+  --success-soft: #12291e;
+  --warning: #f5a524;
+  --warning-soft: #2d2210;
+  --danger: #f2555a;
+  --danger-soft: #33181a;
+  --info: #4cc2ff;
+  --info-soft: #0e2733;
+
+  color-scheme: dark;
 }
 
 * {
@@ -28,7 +119,12 @@ body,
 
 body {
   min-width: 320px;
-  min-height: 100vh;
+  background-color: var(--canvas);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
 button,
@@ -47,6 +143,78 @@ button:disabled {
 }
 
 :focus-visible {
-  outline: 2px solid #2563eb;
+  outline: 2px solid var(--brand);
   outline-offset: 2px;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--line-strong);
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--ink-faint);
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes slide-in-right {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes slide-in-left {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-12px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }

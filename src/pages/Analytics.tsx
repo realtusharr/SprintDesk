@@ -1,66 +1,44 @@
+import { useMemo } from "react";
+import { useBoardStore } from "../store/board.store";
+import { useSprints } from "../hooks/useTask";
+import {
+  getCompletionTrend,
+  getPriorityBreakdown,
+  getStatusDistribution,
+  getVelocity,
+} from "../utils/analytics";
+import VelocityChart from "../components/analytics/VelocityChart";
+import StatusDonut from "../components/analytics/StatusDonut";
+import PriorityBreakdownChart from "../components/analytics/PriorityBreakdownChart";
+import CompletionTrendChart from "../components/analytics/CompletionTrendChart";
+
 export default function Analytics() {
+  const tasks = useBoardStore((state) => state.tasks);
+  const { data: sprints = [] } = useSprints();
+
+  const velocity = useMemo(() => getVelocity(tasks, sprints), [tasks, sprints]);
+  const statusDistribution = useMemo(
+    () => getStatusDistribution(tasks),
+    [tasks]
+  );
+  const priorityBreakdown = useMemo(
+    () => getPriorityBreakdown(tasks),
+    [tasks]
+  );
+  const completionTrend = useMemo(() => getCompletionTrend(tasks), [tasks]);
+
   return (
-    <div className="p-6 md:p-8">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-slate-800">
-          Analytics
-        </h1>
+    <div className="space-y-4 px-4 py-6 md:px-6">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <VelocityChart data={velocity} />
 
-        <p className="mt-1 text-sm text-slate-500">
-          Track sprint performance and team progress.
-        </p>
+        <StatusDonut data={statusDistribution} />
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="rounded-xl bg-white p-5 shadow-sm">
-          <p className="text-sm text-slate-500">
-            Completion Rate
-          </p>
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <PriorityBreakdownChart data={priorityBreakdown} />
 
-          <p className="mt-2 text-3xl font-bold text-slate-800">
-            72%
-          </p>
-        </div>
-
-        <div className="rounded-xl bg-white p-5 shadow-sm">
-          <p className="text-sm text-slate-500">
-            Velocity
-          </p>
-
-          <p className="mt-2 text-3xl font-bold text-slate-800">
-            42
-          </p>
-        </div>
-
-        <div className="rounded-xl bg-white p-5 shadow-sm">
-          <p className="text-sm text-slate-500">
-            Completed Tasks
-          </p>
-
-          <p className="mt-2 text-3xl font-bold text-slate-800">
-            12
-          </p>
-        </div>
-
-        <div className="rounded-xl bg-white p-5 shadow-sm">
-          <p className="text-sm text-slate-500">
-            Team Members
-          </p>
-
-          <p className="mt-2 text-3xl font-bold text-slate-800">
-            6
-          </p>
-        </div>
-      </div>
-
-      <div className="mt-6 rounded-xl bg-white p-8 text-center shadow-sm">
-        <h2 className="text-lg font-semibold text-slate-800">
-          Analytics Charts
-        </h2>
-
-        <p className="mt-2 text-sm text-slate-500">
-          Charts will be added in the next stage.
-        </p>
+        <CompletionTrendChart data={completionTrend} />
       </div>
     </div>
   );

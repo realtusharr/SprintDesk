@@ -1,0 +1,294 @@
+openapi: 3.1.0
+info:
+  title: SprintDesk External API Contract
+  description: >-
+    Documents the third-party and local endpoints SprintDesk integrates with:
+    DummyJSON for authentication, JSONPlaceholder as a simulated notification
+    feed, and the local mock-data document used to seed the board.
+  version: 1.0.0
+
+servers:
+  - url: https://dummyjson.com
+    description: Authentication provider (demo)
+  - url: https://jsonplaceholder.typicode.com
+    description: Notification feed provider (demo)
+  - url: /
+    description: Local static assets served by Vite
+
+tags:
+  - name: Auth
+  - name: Notifications
+  - name: Mock Data
+
+paths:
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Authenticate a user
+      description: >-
+        Exchanged by `loginRequest` in `src/api/auth.api.ts`. On success the
+        access token is kept in memory and the refresh token is stored in
+        localStorage or sessionStorage depending on the "Remember me" choice.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password]
+              properties:
+                username:
+                  type: string
+                  example: emilys
+                password:
+                  type: string
+                  example: emilyspass
+      responses:
+        "200":
+          description: Authenticated session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthSession"
+        "400":
+          description: Missing credentials
+        "401":
+          description: Invalid credentials
+
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: Get the authenticated user
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Current user profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          description: Missing, invalid, or expired access token
+
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Rotate an expired access token
+      description: >-
+        Called once per burst of 401 responses by `refreshSession` in
+        `src/api/client.ts`; concurrent callers share a single in-flight
+        promise. Sends the persisted refresh token as a cookie.
+      responses:
+        "200":
+          description: New token pair
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthSession"
+        "401":
+          description: Refresh token missing, expired, or revoked.
+            The client clears the session and redirects to login.
+
+  /posts:
+    get:
+      tags: [Notifications]
+      summary: Poll the notification feed
+      description: >-
+        Queried with `_limit=5&_start=N` every 15 seconds while the tab is
+        visible. The start cursor advances by 5 and wraps at 95. Items whose
+        ids are unknown to the store are treated as new unread notifications.
+      parameters:
+        - name: _limit
+          in: query
+          required: true
+          schema:
+            type: integer
+            example: 5
+        - name: _start
+          in: query
+          required: true
+          schema:
+            type: integer
+            example: 0
+      responses:
+        "200":
+          description: A page of feed items mapped to AppNotification objects
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Notification"
+
+  /mock-data.json:
+    get:
+      tags: [Mock Data]
+      summary: Seed data for users, sprints, tasks, comments, notifications
+      description: >-
+        Fetched once by `getMockData` in `src/api/task.api.ts`; hydrates the
+        board store on first run only (the store is persisted afterwards).
+      responses:
+        "200":
+          description: Seed document
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [users, sprints, tasks, comments, notifications]
+                properties:
+                  users:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/User"
+                  sprints:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Sprint"
+                  tasks:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Task"
+                  comments:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/TaskComment"
+                  notifications:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Notification"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    AuthSession:
+      type: object
+      required: [accessToken, refreshToken, user]
+      properties:
+        accessToken:
+          type: string
+        refreshToken:
+          type: string
+        user:
+          $ref: "#/components/schemas/User"
+
+    User:
+      type: object
+      required: [id, username, email, firstName, lastName]
+      properties:
+        id:
+          type: integer
+        username:
+          type: string
+        email:
+          type: string
+          format: email
+        firstName:
+          type: string
+        lastName:
+          type: string
+        image:
+          type: string
+          format: uri
+
+    Sprint:
+      type: object
+      required: [id, name, goal, startDate, endDate, status]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        goal:
+          type: string
+        startDate:
+          type: string
+          format: date-time
+        endDate:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [planning, active, completed]
+
+    Task:
+      type: object
+      required:
+        [id, title, status, priority, assigneeId, sprintId, order,
+         createdAt, updatedAt, dueDate]
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        description:
+          type: string
+        status:
+          type: string
+          enum: [backlog, in-progress, review, done]
+        priority:
+          type: string
+          enum: [low, medium, high]
+        assigneeId:
+          type: integer
+        sprintId:
+          type: integer
+        order:
+          type: integer
+          minimum: 1
+          description: 1-based position within its status column
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+        dueDate:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    TaskComment:
+      type: object
+      required: [id, taskId, authorId, body, createdAt]
+      properties:
+        id:
+          type: integer
+        taskId:
+          type: integer
+        authorId:
+          type: integer
+        body:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    Notification:
+      type: object
+      required: [id, type, title, message, createdAt, read]
+      properties:
+        id:
+          type: integer
+        type:
+          type: string
+          enum: [task, review, mention]
+        title:
+          type: string
+        message:
+          type: string
+        link:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        read:
+          type: boolean

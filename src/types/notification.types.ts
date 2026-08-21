@@ -1,10 +1,10 @@
-export type NotificationType = "task" | "review";
+export type NotificationType = "task" | "review" | "mention";
 
 export interface AppNotification {
   id: number;
   title: string;
   message: string;
-  type: "task" | "review";
+  type: NotificationType;
   read: boolean;
   createdAt: string;
 }

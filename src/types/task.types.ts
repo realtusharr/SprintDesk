@@ -1,13 +1,6 @@
-export type TaskStatus =
-  | "backlog"
-  | "in-progress"
-  | "review"
-  | "done";
+export type TaskStatus = "backlog" | "in-progress" | "review" | "done";
 
-export type TaskPriority =
-  | "low"
-  | "medium"
-  | "high";
+export type TaskPriority = "low" | "medium" | "high";
 
 export interface Task {
   id: number;
@@ -22,4 +15,12 @@ export interface Task {
   createdAt: string;
   completedAt: string | null;
   updatedAt: string;
+}
+
+export interface TaskComment {
+  id: number;
+  taskId: number;
+  authorId: number;
+  message: string;
+  createdAt: string;
 }

@@ -1,48 +1,25 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
 import type { AuthUser } from "../types/auth.types";
+
+export type AuthStatus = "bootstrapping" | "authenticated" | "unauthenticated";
 
 interface AuthState {
   user: AuthUser | null;
   accessToken: string | null;
-  refreshToken: string | null;
+  status: AuthStatus;
 
-  login: (
-    user: AuthUser,
-    accessToken: string,
-    refreshToken: string
-  ) => void;
-
-  logout: () => void;
+  setSession: (user: AuthUser, accessToken: string) => void;
+  clearSession: () => void;
 }
 
-export const useAuthStore = create<AuthState>()(
-  persist(
-    (set) => ({
-      user: null,
-      accessToken: null,
-      refreshToken: null,
+export const useAuthStore = create<AuthState>((set) => ({
+  user: null,
+  accessToken: null,
+  status: "bootstrapping",
 
-      login: (
-        user,
-        accessToken,
-        refreshToken
-      ) =>
-        set({
-          user,
-          accessToken,
-          refreshToken,
-        }),
+  setSession: (user, accessToken) =>
+    set({ user, accessToken, status: "authenticated" }),
 
-      logout: () =>
-        set({
-          user: null,
-          accessToken: null,
-          refreshToken: null,
-        }),
-    }),
-    {
-      name: "sprintdesk-auth",
-    }
-  )
-);
+  clearSession: () =>
+    set({ user: null, accessToken: null, status: "unauthenticated" }),
+}));

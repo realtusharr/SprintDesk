@@ -1,236 +1,386 @@
+import { useMemo } from "react";
+import { Link } from "react-router-dom";
 import {
+  ArrowRight,
+  ArrowUpRight,
+  CalendarClock,
   CheckCircle2,
   Clock3,
   ListTodo,
-  TrendingUp,
-  Users,
+  Zap,
 } from "lucide-react";
+import { useAuthStore } from "../store/auth.store";
+import { useBoardStore } from "../store/board.store";
+import { useSprints, useUsers } from "../hooks/useTask";
+import type { Task } from "../types/task.types";
+import { formatDate, formatShortDate, isOverdue, findActiveSprint } from "../utils/date";
+import Avatar from "../components/ui/Avatar";
+import Badge, { type BadgeTone } from "../components/ui/Badge";
+import Skeleton from "../components/ui/Skeleton";
+import EmptyState from "../components/ui/EmptyState";
 
-const stats = [
-  {
-    title: "Total Tasks",
-    value: "30",
-    change: "+12%",
-    icon: ListTodo,
-  },
-  {
-    title: "In Progress",
-    value: "8",
-    change: "+5%",
-    icon: Clock3,
-  },
-  {
-    title: "Completed",
-    value: "12",
-    change: "+18%",
-    icon: CheckCircle2,
-  },
-  {
-    title: "Team Members",
-    value: "6",
-    change: "+1",
-    icon: Users,
-  },
-];
+const STATUS_META: Record<
+  Task["status"],
+  { label: string; tone: BadgeTone }
+> = {
+  backlog: { label: "Backlog", tone: "neutral" },
+  "in-progress": { label: "In Progress", tone: "info" },
+  review: { label: "Review", tone: "warning" },
+  done: { label: "Done", tone: "success" },
+};
 
-const recentTasks = [
-  {
-    title: "Design login page",
-    project: "SprintDesk",
-    status: "In Progress",
-    priority: "High",
-  },
-  {
-    title: "Create authentication API",
-    project: "SprintDesk",
-    status: "Review",
-    priority: "High",
-  },
-  {
-    title: "Build dashboard UI",
-    project: "SprintDesk",
-    status: "Done",
-    priority: "Medium",
-  },
-  {
-    title: "Create notification system",
-    project: "SprintDesk",
-    status: "To Do",
-    priority: "Low",
-  },
-];
+const PRIORITY_TONES: Record<Task["priority"], BadgeTone> = {
+  low: "success",
+  medium: "warning",
+  high: "danger",
+};
 
-function getStatusClass(status: string) {
-  switch (status) {
-    case "Done":
-      return "bg-green-100 text-green-700";
-
-    case "In Progress":
-      return "bg-blue-100 text-blue-700";
-
-    case "Review":
-      return "bg-purple-100 text-purple-700";
-
-    default:
-      return "bg-slate-100 text-slate-600";
-  }
-}
-
-function getPriorityClass(priority: string) {
-  switch (priority) {
-    case "High":
-      return "text-red-600";
-
-    case "Medium":
-      return "text-orange-600";
-
-    default:
-      return "text-green-600";
-  }
-}
-
-export default function Dashboard() {
+function StatCard({
+  label,
+  value,
+  icon: Icon,
+  accent,
+}: {
+  label: string;
+  value: number;
+  icon: typeof ListTodo;
+  accent: string;
+}) {
   return (
-    <div className="space-y-6 p-6 md:p-8">
+    <div className="rounded-2xl border border-line bg-surface p-5 shadow-card">
+      <div className="flex items-center justify-between">
+        <p className="text-[13px] font-medium text-ink-secondary">{label}</p>
 
-      {/* Page heading */}
-      <div>
-        <h1 className="text-2xl font-bold text-slate-800">
-          Dashboard
-        </h1>
+        <span
+          aria-hidden="true"
+          className={`flex size-9 items-center justify-center rounded-xl ${accent}`}
+        >
+          <Icon size={17} />
+        </span>
+      </div>
 
-        <p className="mt-1 text-sm text-slate-500">
-          Welcome back! Here's what's happening with your sprint.
+      <p className="mt-3 text-3xl font-bold tracking-tight text-ink">{value}</p>
+    </div>
+  );
+}
+
+function TaskRow({ task, userById }: { task: Task; userById: Map<number, { name: string; avatar?: string }> }) {
+  const assignee = userById.get(task.assigneeId);
+
+  return (
+    <div className="flex items-center gap-3 px-5 py-3.5 transition-colors hover:bg-sunken/60">
+      <Avatar name={assignee?.name ?? "Unassigned"} src={assignee?.avatar} />
+
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-[13px] font-medium text-ink">{task.title}</p>
+
+        <p className="mt-0.5 text-[11px] text-ink-muted">
+          {assignee?.name ?? "Unassigned"} · updated{" "}
+          {formatShortDate(task.updatedAt)}
         </p>
       </div>
 
-      {/* Statistics */}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {stats.map((stat) => {
-          const Icon = stat.icon;
+      <Badge tone={PRIORITY_TONES[task.priority]} dot>
+        {task.priority}
+      </Badge>
 
-          return (
-            <div
-              key={stat.title}
-              className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-slate-500">
-                    {stat.title}
-                  </p>
+      <Badge tone={STATUS_META[task.status].tone}>
+        {STATUS_META[task.status].label}
+      </Badge>
+    </div>
+  );
+}
 
-                  <p className="mt-2 text-3xl font-bold text-slate-800">
-                    {stat.value}
-                  </p>
-                </div>
+export default function Dashboard() {
+  const user = useAuthStore((state) => state.user);
+  const tasks = useBoardStore((state) => state.tasks);
+  const hydrated = useBoardStore((state) => state.hydrated);
+  const { data: sprints = [] } = useSprints();
+  const { data: users = [] } = useUsers();
 
-                <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
-                  <Icon size={22} />
-                </div>
-              </div>
+  const userById = useMemo(() => {
+    const map = new Map<number, { name: string; avatar?: string }>();
 
-              <p className="mt-4 flex items-center gap-1 text-xs text-green-600">
-                <TrendingUp size={14} />
-                {stat.change} from last sprint
-              </p>
-            </div>
-          );
-        })}
-      </div>
+    for (const teamUser of users) {
+      map.set(teamUser.id, { name: teamUser.name, avatar: teamUser.avatar });
+    }
 
-      {/* Sprint progress */}
-      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
-          <div>
-            <h2 className="font-semibold text-slate-800">
-              Sprint 1
-            </h2>
+    return map;
+  }, [users]);
 
-            <p className="mt-1 text-sm text-slate-500">
-              Current sprint progress
-            </p>
-          </div>
+  const stats = useMemo(
+    () => ({
+      total: tasks.length,
+      inProgress: tasks.filter((task) => task.status === "in-progress").length,
+      completed: tasks.filter((task) => task.status === "done").length,
+      overdue: tasks.filter(
+        (task) => task.status !== "done" && isOverdue(task.dueDate)
+      ).length,
+    }),
+    [tasks]
+  );
 
-          <span className="w-fit rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-700">
-            Active
-          </span>
-        </div>
+  const activeSprint = useMemo(
+    () => findActiveSprint(sprints),
+    [sprints]
+  );
 
-        <div className="mt-6">
-          <div className="mb-2 flex justify-between text-sm">
-            <span className="text-slate-500">
-              18 of 30 tasks completed
-            </span>
+  const sprintProgress = useMemo(() => {
+    if (!activeSprint) return null;
 
-            <span className="font-semibold text-slate-700">
-              60%
-            </span>
-          </div>
+    const sprintTasks = tasks.filter(
+      (task) => task.sprintId === activeSprint.id
+    );
 
-          <div className="h-3 overflow-hidden rounded-full bg-slate-100">
-            <div className="h-full w-[60%] rounded-full bg-indigo-600" />
-          </div>
-        </div>
-      </div>
+    const completed = sprintTasks.filter(
+      (task) => task.status === "done"
+    ).length;
 
-      {/* Recent tasks */}
-      <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
-        <div className="flex items-center justify-between border-b border-slate-200 p-6">
-          <div>
-            <h2 className="font-semibold text-slate-800">
-              Recent Tasks
-            </h2>
+    return {
+      total: sprintTasks.length,
+      completed,
+      percent:
+        sprintTasks.length === 0
+          ? 0
+          : Math.round((completed / sprintTasks.length) * 100),
+    };
+  }, [activeSprint, tasks]);
 
-            <p className="mt-1 text-sm text-slate-500">
-              Latest activity from your team
-            </p>
-          </div>
+  const recentTasks = useMemo(
+    () =>
+      [...tasks]
+        .sort(
+          (a, b) =>
+            new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+        )
+        .slice(0, 5),
+    [tasks]
+  );
 
-          <button
-            type="button"
-            className="text-sm font-medium text-indigo-600 hover:text-indigo-700"
-          >
-            View all
-          </button>
-        </div>
+  const upcomingDeadlines = useMemo(
+    () =>
+      [...tasks]
+        .filter((task) => task.status !== "done")
+        .sort((a, b) => a.dueDate.localeCompare(b.dueDate))
+        .slice(0, 4),
+    [tasks]
+  );
 
-        <div className="divide-y divide-slate-100">
-          {recentTasks.map((task) => (
-            <div
-              key={task.title}
-              className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between"
-            >
-              <div>
-                <h3 className="font-medium text-slate-800">
-                  {task.title}
-                </h3>
+  if (!hydrated) {
+    return (
+      <div className="space-y-4 px-4 py-6 md:px-6">
+        <Skeleton className="h-9 w-56" />
 
-                <p className="mt-1 text-xs text-slate-400">
-                  {task.project}
-                </p>
-              </div>
-
-              <div className="flex items-center gap-3">
-                <span
-                  className={`rounded-full px-3 py-1 text-xs font-medium ${getStatusClass(
-                    task.status
-                  )}`}
-                >
-                  {task.status}
-                </span>
-
-                <span
-                  className={`text-xs font-semibold ${getPriorityClass(
-                    task.priority
-                  )}`}
-                >
-                  {task.priority}
-                </span>
-              </div>
-            </div>
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {[1, 2, 3, 4].map((card) => (
+            <Skeleton key={card} className="h-28 rounded-2xl" />
           ))}
         </div>
+
+        <Skeleton className="h-44 rounded-2xl" />
+
+        <Skeleton className="h-72 rounded-2xl" />
+      </div>
+    );
+  }
+
+  const today = new Date().toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  });
+
+  return (
+    <div className="space-y-5 px-4 py-6 md:px-6">
+      <div>
+        <h2 className="text-xl font-bold tracking-tight text-ink">
+          {user ? `Welcome back, ${user.firstName}` : "Welcome back"}
+        </h2>
+
+        <p className="mt-0.5 text-sm text-ink-muted">{today}</p>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard
+          label="Total tasks"
+          value={stats.total}
+          icon={ListTodo}
+          accent="bg-brand-soft text-brand-ink"
+        />
+
+        <StatCard
+          label="In progress"
+          value={stats.inProgress}
+          icon={Clock3}
+          accent="bg-info-soft text-info"
+        />
+
+        <StatCard
+          label="Completed"
+          value={stats.completed}
+          icon={CheckCircle2}
+          accent="bg-success-soft text-success"
+        />
+
+        <StatCard
+          label="Overdue"
+          value={stats.overdue}
+          icon={CalendarClock}
+          accent="bg-danger-soft text-danger"
+        />
+      </div>
+
+      {activeSprint && sprintProgress && (
+        <section className="rounded-2xl border border-line bg-surface p-5 shadow-card">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <span className="flex size-10 items-center justify-center rounded-xl bg-brand-soft text-brand-ink">
+                <Zap size={18} aria-hidden="true" />
+              </span>
+
+              <div>
+                <h3 className="text-sm font-semibold tracking-tight text-ink">
+                  {activeSprint.name}
+                </h3>
+
+                <p className="text-xs text-ink-muted">
+                  {formatDate(activeSprint.startDate)} –{" "}
+                  {formatDate(activeSprint.endDate)}
+                </p>
+              </div>
+            </div>
+
+            <Badge tone="brand" dot>
+              Active now
+            </Badge>
+          </div>
+
+          <div className="mt-5">
+            <div className="mb-2 flex items-baseline justify-between text-xs">
+              <span className="text-ink-secondary">
+                {sprintProgress.completed} of {sprintProgress.total} tasks
+                completed
+              </span>
+
+              <span className="font-semibold text-ink">
+                {sprintProgress.percent}%
+              </span>
+            </div>
+
+            <div
+              role="progressbar"
+              aria-valuenow={sprintProgress.percent}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-label={`${activeSprint.name} completion`}
+              className="h-2 overflow-hidden rounded-full bg-sunken"
+            >
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-brand to-info transition-all duration-500"
+                style={{ width: `${sprintProgress.percent}%` }}
+              />
+            </div>
+          </div>
+        </section>
+      )}
+
+      <div className="grid gap-4 lg:grid-cols-5">
+        <section className="rounded-2xl border border-line bg-surface shadow-card lg:col-span-3">
+          <header className="flex items-center justify-between border-b border-line px-5 py-4">
+            <div>
+              <h3 className="text-sm font-semibold tracking-tight text-ink">
+                Recent activity
+              </h3>
+
+              <p className="text-xs text-ink-muted">
+                Latest updates across your sprint
+              </p>
+            </div>
+
+            <Link
+              to="/board"
+              className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-brand-ink transition-colors hover:bg-brand-soft"
+            >
+              View board
+              <ArrowRight size={13} aria-hidden="true" />
+            </Link>
+          </header>
+
+          <div className="divide-y divide-line">
+            {recentTasks.map((task) => (
+              <TaskRow key={task.id} task={task} userById={userById} />
+            ))}
+
+            {recentTasks.length === 0 && (
+              <EmptyState
+                icon={ListTodo}
+                title="No activity yet"
+                message="Tasks will appear here as your team works."
+                className="m-4"
+              />
+            )}
+          </div>
+        </section>
+
+        <section className="rounded-2xl border border-line bg-surface shadow-card lg:col-span-2">
+          <header className="border-b border-line px-5 py-4">
+            <h3 className="text-sm font-semibold tracking-tight text-ink">
+              Due soon
+            </h3>
+
+            <p className="text-xs text-ink-muted">Open tasks by due date</p>
+          </header>
+
+          <ul className="divide-y divide-line">
+            {upcomingDeadlines.map((task) => {
+              const overdue = isOverdue(task.dueDate);
+
+              return (
+                <li key={task.id}>
+                  <Link
+                    to="/board"
+                    className="flex items-center gap-3 px-5 py-3 transition-colors hover:bg-sunken/60"
+                  >
+                    <span
+                      aria-hidden="true"
+                      className={`size-1.5 shrink-0 rounded-full ${
+                        overdue ? "bg-danger" : "bg-warning"
+                      }`}
+                    />
+
+                    <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-ink">
+                      {task.title}
+                    </span>
+
+                    <span
+                      className={`shrink-0 text-[11px] font-medium ${
+                        overdue ? "text-danger" : "text-ink-muted"
+                      }`}
+                    >
+                      {formatShortDate(task.dueDate)}
+                    </span>
+
+                    <ArrowUpRight
+                      size={14}
+                      aria-hidden="true"
+                      className="shrink-0 text-ink-faint"
+                    />
+                  </Link>
+                </li>
+              );
+            })}
+
+            {upcomingDeadlines.length === 0 && (
+              <li className="p-4">
+                <EmptyState
+                  icon={CheckCircle2}
+                  title="All caught up"
+                  message="No open deadlines right now."
+                />
+              </li>
+            )}
+          </ul>
+        </section>
       </div>
     </div>
   );

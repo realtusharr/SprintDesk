@@ -1,50 +1,96 @@
+import { memo } from "react";
+import { useDroppable } from "@dnd-kit/core";
+import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import type { Task, TaskStatus } from "../../types/task.types";
+import { cn } from "../../utils/cn";
 import TaskCard from "./TaskCard";
-import type { Task, TaskStatus } from "./KanbanBoard";
 
-interface KanbanColumnProps {
-  title: string;
+const COLUMN_ACCENTS: Record<TaskStatus, string> = {
+  backlog: "bg-ink-faint",
+  "in-progress": "bg-info",
+  review: "bg-warning",
+  done: "bg-success",
+};
+
+export interface KanbanColumnProps {
   status: TaskStatus;
+  title: string;
   tasks: Task[];
-  onMoveTask: (
-    taskId: number,
-    status: TaskStatus
-  ) => void;
+  assigneeById: Map<number, { name: string; avatar?: string }>;
+  commentCounts: Map<number, number>;
+  onOpenTask: (taskId: number) => void;
+  onDeleteTask: (taskId: number) => void;
 }
 
-export default function KanbanColumn({
-  title,
+function KanbanColumn({
   status,
+  title,
   tasks,
-  onMoveTask,
+  assigneeById,
+  commentCounts,
+  onOpenTask,
+  onDeleteTask,
 }: KanbanColumnProps) {
+  const { setNodeRef, isOver } = useDroppable({ id: status });
+
   return (
-    <div className="min-h-[500px] rounded-xl bg-slate-100 p-4">
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="font-semibold text-slate-700">
-          {title}
-        </h2>
-
-        <span className="rounded-full bg-white px-2.5 py-1 text-xs font-medium text-slate-500">
-          {tasks.length}
-        </span>
-      </div>
-
-      <div className="space-y-3">
-        {tasks.map((task) => (
-          <TaskCard
-            key={task.id}
-            task={task}
-            currentStatus={status}
-            onMoveTask={onMoveTask}
+    <section
+      aria-label={`${title} column, ${tasks.length} tasks`}
+      className="flex min-h-0 flex-col rounded-2xl border border-line bg-sunken/60 p-2.5 transition-colors"
+    >
+      <header className="flex items-center justify-between px-1.5 pb-3 pt-1">
+        <div className="flex items-center gap-2">
+          <span
+            aria-hidden="true"
+            className={cn("size-2 rounded-full", COLUMN_ACCENTS[status])}
           />
-        ))}
 
-        {tasks.length === 0 && (
-          <div className="rounded-lg border-2 border-dashed border-slate-200 p-8 text-center text-sm text-slate-400">
-            No tasks
-          </div>
-        )}
-      </div>
-    </div>
+          <h2 className="text-[13px] font-semibold tracking-tight text-ink">
+            {title}
+          </h2>
+
+          <span className="rounded-full bg-surface px-2 py-0.5 text-[11px] font-semibold text-ink-muted ring-1 ring-line">
+            {tasks.length}
+          </span>
+        </div>
+      </header>
+
+      <SortableContext
+        items={tasks.map((task) => task.id)}
+        strategy={verticalListSortingStrategy}
+      >
+        <div
+          ref={setNodeRef}
+          className={cn(
+            "flex min-h-24 flex-1 flex-col gap-2 overflow-y-auto rounded-xl p-0.5 transition-colors",
+            isOver && "bg-brand-soft/40 ring-1 ring-inset ring-brand/30"
+          )}
+        >
+          {tasks.map((task) => {
+            const assignee = assigneeById.get(task.assigneeId);
+
+            return (
+              <TaskCard
+                key={task.id}
+                task={task}
+                assigneeName={assignee?.name}
+                assigneeAvatar={assignee?.avatar}
+                commentCount={commentCounts.get(task.id) ?? 0}
+                onOpen={onOpenTask}
+                onDelete={onDeleteTask}
+              />
+            );
+          })}
+
+          {tasks.length === 0 && (
+            <div className="flex h-24 items-center justify-center rounded-xl border border-dashed border-line-strong text-xs text-ink-muted">
+              Drop tasks here
+            </div>
+          )}
+        </div>
+      </SortableContext>
+    </section>
   );
 }
+
+export default memo(KanbanColumn);

@@ -1,80 +1,130 @@
-import {
-  ArrowRight,
-  User,
-} from "lucide-react";
+import { memo } from "react";
+import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { CalendarDays, GripVertical, MessageSquare, Trash2 } from "lucide-react";
+import type { Task } from "../../types/task.types";
+import { PRIORITY_LABELS } from "../../utils/constants";
+import { formatShortDate, isOverdue } from "../../utils/date";
+import Avatar from "../ui/Avatar";
+import Badge, { type BadgeTone } from "../ui/Badge";
+import { cn } from "../../utils/cn";
 
-import type { Task, TaskStatus } from "./KanbanBoard";
+const PRIORITY_TONES: Record<Task["priority"], BadgeTone> = {
+  low: "success",
+  medium: "warning",
+  high: "danger",
+};
 
-interface TaskCardProps {
+export interface TaskCardProps {
   task: Task;
-  currentStatus: TaskStatus;
-  onMoveTask: (
-    taskId: number,
-    status: TaskStatus
-  ) => void;
+  assigneeName?: string;
+  assigneeAvatar?: string;
+  commentCount: number;
+  onOpen?: (taskId: number) => void;
+  onDelete?: (taskId: number) => void;
 }
 
-const nextStatus: Record<
-  TaskStatus,
-  TaskStatus | null
-> = {
-  todo: "progress",
-  progress: "review",
-  review: "done",
-  done: null,
-};
-
-const priorityClass = {
-  Low: "bg-green-100 text-green-700",
-  Medium: "bg-yellow-100 text-yellow-700",
-  High: "bg-red-100 text-red-700",
-};
-
-export default function TaskCard({
+export const TaskCardBody = memo(function TaskCardBody({
   task,
-  currentStatus,
-  onMoveTask,
+  assigneeName,
+  assigneeAvatar,
+  commentCount,
+  onOpen,
+  onDelete,
 }: TaskCardProps) {
-  const next = nextStatus[currentStatus];
+  const overdue = task.status !== "done" && isOverdue(task.dueDate);
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-      <div className="mb-3 flex items-start justify-between gap-2">
-        <h3 className="font-medium text-slate-800">
-          {task.title}
-        </h3>
+    <div
+      className="group/card cursor-grab rounded-xl border border-line bg-surface p-3 shadow-card transition-shadow hover:shadow-pop active:cursor-grabbing"
+      onClick={() => onOpen?.(task.id)}
+      onKeyDown={(event) => {
+        if (event.key === "Enter") {
+          event.stopPropagation();
+          onOpen?.(task.id);
+        }
+      }}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <Badge tone={PRIORITY_TONES[task.priority]} dot>
+          {PRIORITY_LABELS[task.priority]}
+        </Badge>
 
-        <span
-          className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-semibold ${priorityClass[task.priority]}`}
-        >
-          {task.priority}
+        <span className="flex items-center gap-0.5">
+          <GripVertical
+            size={14}
+            aria-hidden="true"
+            className="text-ink-faint opacity-0 transition-opacity group-hover/card:opacity-100"
+          />
+
+          {onDelete && (
+            <button
+              type="button"
+              aria-label={`Delete task ${task.title}`}
+              className="rounded-md p-1 text-ink-faint opacity-0 transition-all hover:bg-danger-soft hover:text-danger focus-visible:opacity-100 group-hover/card:opacity-100"
+              onClick={(event) => {
+                event.stopPropagation();
+                onDelete(task.id);
+              }}
+            >
+              <Trash2 size={13} />
+            </button>
+          )}
         </span>
       </div>
 
-      <p className="mb-4 text-xs leading-5 text-slate-500">
-        {task.description}
+      <p className="mt-2 line-clamp-2 text-[13px] font-medium leading-snug text-ink">
+        {task.title}
       </p>
 
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-indigo-100 text-[10px] font-semibold text-indigo-700">
-            {task.assignee}
-          </div>
+      <div className="mt-3 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5">
+          {assigneeName && (
+            <Avatar name={assigneeName} src={assigneeAvatar} size="sm" />
+          )}
 
-          <User size={13} className="text-slate-400" />
+          <span
+            className={cn(
+              "inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium",
+              overdue
+                ? "bg-danger-soft text-danger"
+                : "bg-sunken text-ink-secondary"
+            )}
+          >
+            <CalendarDays size={11} aria-hidden="true" />
+            {formatShortDate(task.dueDate)}
+          </span>
         </div>
 
-        {next && (
-          <button
-            type="button"
-            onClick={() => onMoveTask(task.id, next)}
-            className="flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium text-indigo-600 hover:bg-indigo-50"
-          >
-            Move
-            <ArrowRight size={13} />
-          </button>
+        {commentCount > 0 && (
+          <span className="inline-flex items-center gap-1 text-[11px] font-medium text-ink-muted">
+            <MessageSquare size={11} aria-hidden="true" />
+            {commentCount}
+          </span>
         )}
       </div>
     </div>
   );
+});
+
+function TaskCard(props: TaskCardProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id: props.task.id });
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={{
+        transform: CSS.Translate.toString(transform),
+        transition,
+      }}
+      {...attributes}
+      {...listeners}
+      className={cn("touch-none", isDragging && "opacity-40")}
+    >
+      <TaskCardBody {...props} />
+    </div>
+  );
 }
+
+export default memo(TaskCard);

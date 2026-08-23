@@ -1,19 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { apiFetch } from "./client";
 import { useAuthStore } from "../store/auth.store";
-import { saveRefreshToken } from "../utils/storage";
-import type { AuthResponse } from "../types/auth.types";
-
-const refreshResponse: AuthResponse = {
-  id: 1,
-  username: "emilys",
-  email: "emily@example.com",
-  firstName: "Emily",
-  lastName: "Johnson",
-  image: "https://example.com/emily.png",
-  accessToken: "new-access-token",
-  refreshToken: "new-refresh-token",
-};
+import { clearRefreshToken, saveRefreshToken } from "../utils/storage";
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -57,15 +45,11 @@ describe("auth interceptor", () => {
   it("refreshes once on 401 and retries with the new token", async () => {
     const authorizationHeaders: Array<string | undefined> = [];
 
-    fetchMock.mockImplementation(async (url: string, options?: RequestInit) => {
-      if (String(url).includes("/auth/refresh")) {
-        return jsonResponse(refreshResponse);
-      }
-
+    fetchMock.mockImplementation(async (_url: string, options?: RequestInit) => {
       const headers = (options?.headers ?? {}) as Record<string, string>;
       authorizationHeaders.push(headers.Authorization);
 
-      if (headers.Authorization === "Bearer new-access-token") {
+      if (headers.Authorization !== "Bearer expired-token") {
         return jsonResponse({ data: "payload" });
       }
 
@@ -77,22 +61,20 @@ describe("auth interceptor", () => {
     );
 
     expect(result.data).toBe("payload");
-    expect(authorizationHeaders).toEqual([
-      "Bearer expired-token",
-      "Bearer new-access-token",
-    ]);
-    expect(useAuthStore.getState().accessToken).toBe("new-access-token");
-    expect(useAuthStore.getState().user?.firstName).toBe("Emily");
+    expect(authorizationHeaders).toHaveLength(2);
+    expect(authorizationHeaders[0]).toBe("Bearer expired-token");
+    expect(useAuthStore.getState().accessToken).toBe(
+      authorizationHeaders[1]!.replace("Bearer ", "")
+    );
+    expect(useAuthStore.getState().user?.firstName).toBe("Tushar");
+    expect(useAuthStore.getState().user?.email).toBe(
+      "riteshdubey1313@gmail.com"
+    );
   });
 
-  it("clears the session and throws when refresh fails", async () => {
-    fetchMock.mockImplementation(async (url: string) => {
-      if (String(url).includes("/auth/refresh")) {
-        return jsonResponse({ message: "Invalid refresh token" }, 401);
-      }
-
-      return jsonResponse({ message: "Invalid token" }, 401);
-    });
+  it("clears the session and throws when no refresh token is stored", async () => {
+    clearRefreshToken();
+    fetchMock.mockResolvedValue(jsonResponse({ error: "denied" }, 401));
 
     await expect(apiFetch("https://api.example.com/data")).rejects.toThrow();
 

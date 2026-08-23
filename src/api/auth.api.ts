@@ -1,18 +1,18 @@
-import { apiFetch } from "./client";
+import { createLocalSession, LOCAL_CREDENTIALS } from "./local-auth";
 import type { AuthResponse } from "../types/auth.types";
-
-const DUMMYJSON_BASE = "https://dummyjson.com";
 
 export async function loginRequest(
   username: string,
   password: string
 ): Promise<AuthResponse> {
-  return apiFetch<AuthResponse>(`${DUMMYJSON_BASE}/auth/login`, {
-    method: "POST",
-    body: JSON.stringify({
-      username,
-      password,
-      expiresInMins: 60,
-    }),
-  });
+  const matchesUsername =
+    username.trim().toLowerCase() ===
+    LOCAL_CREDENTIALS.username.toLowerCase();
+  const matchesPassword = password === LOCAL_CREDENTIALS.password;
+
+  if (!matchesUsername || !matchesPassword) {
+    throw new Error("Invalid username or password");
+  }
+
+  return createLocalSession();
 }

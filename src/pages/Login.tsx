@@ -104,7 +104,7 @@ export default function Login() {
   const status = useAuthStore((state) => state.status);
   const login = useLogin();
 
-  const [username, setUsername] = useState("emilys");
+  const [username, setUsername] = useState("Tushardubey");
   const [password, setPassword] = useState("");
   const [remember, setRemember] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
@@ -186,7 +186,7 @@ export default function Login() {
                   autoComplete="username"
                   value={username}
                   onChange={(event) => setUsername(event.target.value)}
-                  placeholder="e.g. emilys"
+                  placeholder="e.g. Tushardubey"
                   className="h-11 w-full rounded-xl border border-line bg-surface pl-9 pr-3 text-sm text-ink shadow-sm transition-colors placeholder:text-ink-faint hover:border-line-strong focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/15"
                 />
               </div>
@@ -298,8 +298,9 @@ export default function Login() {
 
             <p className="mt-1 text-xs text-ink-secondary">
               username{" "}
-              <code className="font-semibold text-ink">emilys</code> · password{" "}
-              <code className="font-semibold text-ink">emilyspass</code>
+              <code className="font-semibold text-ink">Tushardubey</code> ·
+              password{" "}
+              <code className="font-semibold text-ink">tushar1234</code>
             </p>
           </div>
         </div>

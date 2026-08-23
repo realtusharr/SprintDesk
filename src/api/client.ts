@@ -1,8 +1,7 @@
 import { useAuthStore } from "../store/auth.store";
 import { clearRefreshToken, getRefreshToken, saveRefreshToken } from "../utils/storage";
+import { createLocalSession } from "./local-auth";
 import type { AuthResponse } from "../types/auth.types";
-
-const DUMMYJSON_BASE = "https://dummyjson.com";
 
 export class AuthError extends Error {
   constructor(message = "Session expired") {
@@ -11,18 +10,8 @@ export class AuthError extends Error {
   }
 }
 
-async function requestRefreshToken(refreshToken: string): Promise<AuthResponse> {
-  const response = await fetch(`${DUMMYJSON_BASE}/auth/refresh`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ refreshToken, expiresInMins: 60 }),
-  });
-
-  if (!response.ok) {
-    throw new AuthError("Token refresh failed");
-  }
-
-  return response.json() as Promise<AuthResponse>;
+async function requestRefreshToken(): Promise<AuthResponse> {
+  return createLocalSession();
 }
 
 export async function refreshSession(): Promise<boolean> {
@@ -34,7 +23,7 @@ export async function refreshSession(): Promise<boolean> {
   }
 
   try {
-    const response = await requestRefreshToken(stored.token);
+    const response = await requestRefreshToken();
 
     saveRefreshToken(response.refreshToken, stored.remember);
     useAuthStore.getState().setSession(

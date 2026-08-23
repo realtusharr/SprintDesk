@@ -4,7 +4,7 @@ A sprint management dashboard with a Kanban board, analytics, notifications, and
 
 ## Features
 
-- **Authentication** — JWT-style login against the DummyJSON auth API. Access tokens live in memory only; refresh tokens are persisted (localStorage when "Remember me" is checked, otherwise sessionStorage) and rotated automatically via a single-flight silent refresh on `401` responses.
+- **Authentication** — local credential check with a single demo account. Access tokens live in memory only; refresh tokens are persisted (localStorage when "Remember me" is checked, otherwise sessionStorage) and rotated automatically via a single-flight silent refresh on `401` responses.
 - **Kanban board** — four-column board (Backlog / In Progress / Review / Done) powered by dnd-kit with pointer and keyboard dragging, cross-column moves, in-column reordering, drag overlay, move undo, task creation, inline editing in a side drawer, comments, and deletion with confirmation.
 - **Local-first persistence** — board mutations are stored in localStorage (`sprintdesk-board`) so edits survive reloads; mock data hydrates the store once.
 - **Analytics** — velocity bar chart, status donut, priority breakdown, and completion trend charts built with Recharts. Chart colors resolve from CSS custom properties, so charts follow theme changes automatically.
@@ -21,9 +21,9 @@ npm run dev
 
 Open the printed URL and sign in:
 
-| Username  | Password     |
-| --------- | ------------ |
-| `emilys`  | `emilyspass` |
+| Username       | Password      |
+| -------------- | ------------- |
+| `Tushardubey`  | `tushar1234`  |
 
 Check **Remember me** on the login screen to keep your session across browser restarts (30-day refresh token).
 
